@@ -1,0 +1,313 @@
+<?php
+if (! defined('ABSPATH')) exit; // Exit if accessed directly
+
+function eccw_get_pages_list_for_select()
+{
+
+    $special_pages = array(
+        'home'              => 'Home Page',
+        'single'            => 'Single Post/Page',
+        'shop'              => 'Shop Page',
+        'category'          => 'Category Page',
+        'front_page'        => 'Front Page',
+        'woocommerce'       => 'WooCommerce',
+        'product_category'  => 'Product Category Page',
+        'cart'              => 'Cart Page',
+        'product'           => 'Single Product Page',
+        'checkout'          => 'Checkout Page',
+        'product_tag'       => 'Product Tag Page',
+        'blog'              => 'Blog Page'
+    );
+
+    $special_page_ids = array();
+    if (function_exists('wc_get_page_id')) {
+        $special_page_ids[] = wc_get_page_id('shop');
+        $special_page_ids[] = wc_get_page_id('cart');
+        $special_page_ids[] = wc_get_page_id('checkout');
+        $special_page_ids[] = wc_get_page_id('myaccount');
+    }
+
+    $special_page_ids = array_filter($special_page_ids, function ($id) {
+        return $id > 0;
+    });
+
+    $pages = get_posts(array(
+        'post_type'      => 'page',
+        'post_status'    => 'publish',
+        'orderby'        => 'title',
+        'order'          => 'ASC',
+        'posts_per_page' => -1,
+    ));
+
+    $normal_pages = array();
+    if ( ! empty( $pages ) ) {
+        foreach ( $pages as $page ) {
+            if ( ! in_array( $page->ID, $special_page_ids, true ) ) {
+                $normal_pages[ (string) $page->ID ] = $page->post_title;
+            }
+        }
+    }
+
+    $options = array(
+        'Special Pages' => $special_pages,
+        'Normal Pages'  => $normal_pages
+    );
+
+    return $options;
+}
+
+
+function eccw_get_currency_common_settings()
+{
+
+    $ecccw_get_plugin_settings = new ECCW_Plugin_Settings();
+    $plugin_settings = $ecccw_get_plugin_settings->ecccw_get_plugin_settings();
+
+    $admin_settings = new ECCW_admin_settings();
+    $currency_settings = $plugin_settings;
+    $eccw_currency_table = isset($currency_settings['eccw_currency_table']) ? $currency_settings['eccw_currency_table'] : [];
+    $default_currency = isset($_COOKIE['user_preferred_currency']) && !empty($_COOKIE['user_preferred_currency'])
+        ? sanitize_text_field(wp_unslash($_COOKIE['user_preferred_currency']))
+        : (isset($currency_settings['default_currency']) ? $currency_settings['default_currency'] : 'USD');
+
+    $welcome_currency = eccw_get_first_visit_currency();
+
+    if ( !empty($welcome_currency) && !isset($_COOKIE['user_preferred_currency']) && empty($_COOKIE['user_preferred_currency']) ) {
+        $default_currency = $welcome_currency;
+    }
+
+    $options = isset($currency_settings['options']) ? $currency_settings['options'] : [];
+    $flag_visibility = isset($options['flag_visibility']) && !empty($options['flag_visibility']) ? $options['flag_visibility'] : 'no';
+
+    $currency_countries = wp_remote_get(ECCW_DIR_URL . '/admin/assets/json/currency-countries.json', []);
+
+    return [
+        'eccw_currency_table' => $eccw_currency_table,
+        'default_currency' => $default_currency,
+        'flag_visibility' => $flag_visibility,
+        'currency_countries' => $currency_countries,
+    ];
+}
+
+
+ /**
+ * Generate custom CSS from styles array
+ *
+ * @param array $styles Array of CSS rules and values.
+ * @return string Generated CSS.
+ */
+/**
+ * Generate custom CSS from styles array
+ *
+ * @param array $styles Array of CSS rules and values.
+ * @return string Generated CSS.
+ */
+function eccw_generate_css(array $styles)
+{
+    $css = '';
+
+    foreach ($styles as $selector => $properties) {
+
+        if (empty(array_filter($properties))) {
+            continue;
+        }
+
+        $css .= $selector . " {\n";
+        foreach ($properties as $property => $value) {
+            if ($value !== '') {
+                $css .= "    {$property}: " . wp_strip_all_tags($value) . ";\n";
+            }
+        }
+        $css .= "}\n";
+    }
+
+    return $css;
+}
+
+/**
+ * eccw_do_shortcode function
+ *
+ * @param [type] $shortcode
+ * @param array $atts
+ * @return void
+ */
+function eccw_do_shortcode($shortcode, $atts = []) {
+    $atts_string = '';
+    foreach ($atts as $key => $value) {
+        $atts_string .= $key . '="' . esc_attr($value) . '" ';
+    }
+    $atts_string = trim($atts_string);
+
+    return do_shortcode("[$shortcode $atts_string]");
+}
+
+if ( ! function_exists( 'eccw_is_checkout_ajax_request' ) ) {
+
+	/**
+	 * Check if the current request is a WooCommerce checkout AJAX request.
+	 *
+	 * @return bool True if checkout-related AJAX request, false otherwise.
+	 */
+	function eccw_is_checkout_ajax_request() {
+		if ( defined( 'DOING_AJAX' ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$ajax_request = isset( $_REQUEST['wc-ajax'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['wc-ajax'] ) ) : null;
+
+			return in_array(
+				$ajax_request,
+				array( 'update_order_review', 'checkout', 'get_refreshed_fragments' ),
+				true
+			);
+		}
+
+		return false;
+	}
+}
+
+function eccw_get_first_visit_currency() {
+   
+    if ( ! class_exists('WooCommerce') || ! WC()->session ) {
+        return '';
+    }
+
+    $first_visit_currency = WC()->session->get('eccw_firstvisit_client_currency');
+
+    if ( !empty($first_visit_currency) ) {
+        return $first_visit_currency;
+    }
+    
+    return '';
+}
+
+function eccw_get_available_countries() {
+
+    $eccw_currency_settings = get_option('eccw_currency_settings', []);
+
+    $currencies = [];
+
+    if (!empty($eccw_currency_settings) && isset($eccw_currency_settings['eccw_currency_table']) && count($eccw_currency_settings['eccw_currency_table']) > 0) {
+        $eccw_currency_table = $eccw_currency_settings['eccw_currency_table'];
+
+        foreach ($eccw_currency_table as $currency_data) {
+            if (!empty($currency_data['code'])) {
+                $currencies[$currency_data['code']] = $currency_data['code'];
+            }
+        }
+    }
+
+    $default_currency = isset($eccw_currency_settings['default_currency']) && !empty($eccw_currency_settings['default_currency']) ? $eccw_currency_settings['default_currency'] : 'USD';
+
+    if ( isset($currencies[$default_currency]) ) {
+        unset($currencies[$default_currency]);
+    }
+
+    return $currencies;
+}
+
+/**
+ * Recursively sanitize input values.
+ *
+ * This function applies sanitize_text_field() to a single value
+ * or recursively to all elements if an array is provided.
+ *
+ * @param mixed $value Value or array of values to sanitize.
+ * @return mixed Sanitized value or array of sanitized values.
+ */
+function eccw_recursive_sanitize( $value ) {
+    if ( is_array( $value ) ) {
+        return array_map( 'eccw_recursive_sanitize', $value );
+    }
+
+    return sanitize_text_field( $value );
+}
+
+
+function eccw_get_shortcodes() {
+
+    global $ECCW_Admin_Ajax;
+
+    if ( ! isset( $ECCW_Admin_Ajax ) ) {
+        return [];
+    }
+
+    $shortcodes = $ECCW_Admin_Ajax->eccw_get_all_shortcodes_cached();
+
+    if ( empty( $shortcodes ) || ! is_array( $shortcodes ) ) {
+        return [];
+    }
+
+    $options = [];
+
+    foreach ( $shortcodes as $shortcode ) {
+        if ( empty( $shortcode['id'] ) ) {
+            continue;
+        }
+
+       
+        $options[ $shortcode['id'] ] = $shortcode['switcher_name']
+        // translators: %d is the switcher ID number.
+            ?? sprintf( __( 'Switcher #%d', 'easy-currency' ), $shortcode['id'] );
+    }
+
+    return $options;
+}
+
+
+/* currency dropdown switcher block*/
+
+add_filter( 'block_categories_all', 'eccw_currency_register_block_category', 10, 2 );
+
+function eccw_currency_register_block_category( $categories, $post ) {
+
+    $categories[] = array(
+        'slug'  => 'easy-currency',
+        'title' => __( 'Easy Currency', 'easy-currency' ),
+        'icon'  => null, 
+    );
+
+    return $categories;
+}
+
+add_action('init', function() {
+
+    $block_path = __DIR__ . '/build/currency-dropdown';
+
+    if ( ! file_exists( $block_path . '/block.json' ) ) {
+        return;
+    }
+
+    register_block_type( $block_path, [
+        'attributes' => [
+            'shortcode_id' => [
+                'type' => 'string',
+                'default' => '1', 
+            ],
+        ],
+        'render_callback' => function( $attributes ) {
+            $shortcode_id = $attributes['shortcode_id'] ?? '1';
+
+            return do_shortcode("[easy_currency_switcher id='{$shortcode_id}']");
+        },
+    ] );
+});
+
+
+function eccw_enqueue_block_editor_assets() {
+   
+    wp_enqueue_script(
+        'eccw-block-editor',
+        ECCW_DIR_URL . "build/currency-dropdown/index.js",
+        ['wp-blocks', 'wp-element', 'wp-components', 'wp-i18n', 'wp-editor'],
+        ECCW_VERSION,
+        true
+    );
+
+    $shortcodes = eccw_get_shortcodes(); 
+    wp_add_inline_script(
+        'eccw-block-editor',
+        'var eccwData = ' . wp_json_encode(['shortcodes' => $shortcodes]) . ';'
+    );
+}
+
+
+add_action( 'enqueue_block_editor_assets', 'eccw_enqueue_block_editor_assets' );
