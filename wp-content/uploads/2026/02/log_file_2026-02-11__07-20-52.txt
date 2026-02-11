@@ -1,0 +1,102 @@
+
+---Downloaded files---
+The import files for: weiboo Demo Import were successfully downloaded!
+Initial max execution time = 1200
+Files info:
+Site URL = http://finepixel.local
+Data file = D:\Ravindu\LocalWp\finepixel\app\public/wp-content/uploads/2026/02/demo-content-import-file_2026-02-11__07-20-52.xml
+Widget file = not defined!
+Customizer file = not defined!
+Redux files:
+weiboo_option -> D:\Ravindu\LocalWp\finepixel\app\public/wp-content/uploads/2026/02/demo-redux-import-file_0-2026-02-11__07-20-52.json 
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+------
+New AJAX call!
+
+
+---Importing Redux settings---
+Redux settings import for: weiboo_option finished successfully!
+
+---ocdi/after_import---
+
